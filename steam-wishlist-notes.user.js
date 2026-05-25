@@ -15,22 +15,22 @@
 
     const style = document.createElement('style');
     style.innerHTML = `
-        div[data-rfd-draggable-id^="WishlistItem-"]:has(div + a + div + div + div + div + div + div)
+        div:has(> .steam-custom-note-wrap):has(> div > span > span[title="Windows"])
         {
-          min-height: 160px;
-          height: unset;
-          grid-template-rows: 32px 46px 32px auto;
+            min-height: 160px;
+            height: unset;
+            grid-template-columns: fit-content(0) 292px auto auto;
+            grid-template-rows: 32px 46px 32px auto;
+            grid-template-areas:
+                "dragger capsule upper    upper   "
+                "dragger capsule lower    remove  "
+                "dragger capsule mid      purchase"
+                "dragger capsule platform purchase"
+                "dragger note note note";
         }
-        div[data-rfd-draggable-id^="WishlistItem-"] > div:has(+ a + div + div + div + div + div + div) {
-            grid-area: dragger;
-            grid-row: 1 / 6; /* spans rows 1–5 */
-        }
-        .steam-custom-note-wrap {
+        div:has(> .steam-custom-note-wrap):has(> div > span > span[title="Windows"]) .steam-custom-note-wrap {
+            grid-area: note;
             margin: 8px 0 -2px 0;
-            grid-row: 5 / 6;    /* implicit 5th row */
-            grid-column: 2 / 5; /* starts at column 2, spans through column 4 */
-            align-self: stretch;
-            justify-self: stretch;
         }
         .steam-custom-note-box {
             width: 100%;
@@ -57,17 +57,19 @@
     document.head.appendChild(style);
 
     function handleWishlistItem(element) {
-        if (element.querySelector('.steam-custom-note-wrap')){
+        const imageElement = element;
+
+        const itemElement = element.parentElement.parentElement.parentElement;
+        if (itemElement.querySelector('.steam-custom-note-wrap')) {
           return;
         }
 
-        // extract the App ID from data-rfd-draggable-id="WishlistItem-XXXXXXX-X"
-        const dragId = element.getAttribute('data-rfd-draggable-id');
-        if (!dragId){
+        const imageSrc = imageElement.getAttribute('src');
+        if (!imageSrc) {
           return;
         }
 
-        const match = dragId.match(/WishlistItem-(\d+)/);
+        const match = imageSrc.match(/steam\/apps\/(\d+)/);
         if (!match) {
           return;
         }
@@ -80,15 +82,15 @@
 
         const textarea = document.createElement('textarea');
         textarea.className = 'steam-custom-note-box';
-        textarea.placeholder = 'Type notes here... (auto-saves)';
-        textarea.title = "These notes ares stored inside the local extensions database and wont be synced with your Steam account or Browser data.";
+        textarea.placeholder = 'Type notes here...';
+        textarea.title = "Notes are saved automatically in the local extensions database.";
 
         // set value previously saved
-        textarea.value = GM_getValue(`steam_modern_note_${appId}`, '');
+        textarea.value = GM_getValue(`steam_note_${appId}`, '');
 
         // auto-save on typing
         textarea.addEventListener('input', (e) => {
-            GM_setValue(`steam_modern_note_${appId}`, e.target.value);
+            GM_setValue(`steam_note_${appId}`, e.target.value);
         });
 
         // block drag & frop triggers when clicking inside the text field
@@ -98,11 +100,11 @@
         wrap.appendChild(textarea);
 
         // add notes after last element
-        element.lastChild.after(wrap);
+        itemElement.lastChild.after(wrap);
     }
 
     const observer = new MutationObserver((mutations) => {
-        const elements = document.querySelectorAll('[data-rfd-draggable-id^="WishlistItem-"]');
+        const elements = document.querySelectorAll('a > div > img');
         for (let i = 0; i < elements.length; i++) {
             handleWishlistItem(elements[i]);
         }
